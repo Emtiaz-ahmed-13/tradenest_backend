@@ -42,14 +42,30 @@ import { PrismaModule } from './prisma/prisma.module';
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        store: await redisStore({
-          url: configService.get<string>('redis.url'),
-          ttl: configService.get<number>('cache.ttl') ?? 30000,
-        }),
-        ttl: configService.get<number>('cache.ttl') ?? 30000,
-        max: configService.get<number>('cache.max') ?? 1000,
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const ttl = configService.get<number>('cache.ttl') ?? 30000;
+        const max = configService.get<number>('cache.max') ?? 1000;
+        const redisUrl = configService.get<string>('redis.url');
+        const isProduction =
+          configService.get<string>('nodeEnv') === 'production';
+        const isLocalRedis =
+          !redisUrl ||
+          redisUrl.includes('localhost') ||
+          redisUrl.includes('127.0.0.1');
+
+        if (isProduction && isLocalRedis) {
+          return { ttl, max };
+        }
+
+        return {
+          store: await redisStore({
+            url: redisUrl,
+            ttl,
+          }),
+          ttl,
+          max,
+        };
+      },
     }),
     PrismaModule,
     AuthModule,
