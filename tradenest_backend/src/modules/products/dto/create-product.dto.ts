@@ -1,6 +1,8 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
+  IsDateString,
   IsEnum,
   IsInt,
   IsNumber,
@@ -25,6 +27,11 @@ export class CreateProductDto {
   @IsString()
   @MaxLength(3000)
   description!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  richDescription?: string;
 
   @IsEnum(ProductCondition)
   condition!: ProductCondition;
@@ -72,6 +79,24 @@ export class CreateProductDto {
   @IsString()
   @MaxLength(180)
   location?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isBoosted?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  boostedUntil?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  tags?: string[];
 
   @IsOptional()
   @IsArray()

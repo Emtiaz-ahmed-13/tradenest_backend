@@ -37,6 +37,7 @@ export class CategoriesService {
           description: dto.description,
           image: dto.image,
           parentId: dto.parentId,
+          commissionRate: dto.commissionRate ?? 0,
         },
       });
 

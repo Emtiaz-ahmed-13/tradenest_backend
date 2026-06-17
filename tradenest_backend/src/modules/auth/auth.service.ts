@@ -53,16 +53,18 @@ export class AuthConfigService {
         requireEmailVerification: false,
         resetPasswordTokenExpiresIn: 60 * 60,
         revokeSessionsOnPasswordReset: true,
-        sendResetPassword: async ({ user, url }) => {
+        sendResetPassword: ({ user, url }) => {
           this.logger.log(`Password reset requested for ${user.email}: ${url}`);
+          return Promise.resolve();
         },
       },
       emailVerification: {
         sendOnSignUp: false,
         autoSignInAfterVerification: true,
         expiresIn: 60 * 60,
-        sendVerificationEmail: async ({ user, url }) => {
+        sendVerificationEmail: ({ user, url }) => {
           this.logger.log(`Email verification for ${user.email}: ${url}`);
+          return Promise.resolve();
         },
       },
       socialProviders,

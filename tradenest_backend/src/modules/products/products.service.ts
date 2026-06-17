@@ -39,6 +39,7 @@ export class ProductsService {
         { createdAt: 'asc' },
       ],
     },
+    tags: true,
   };
 
   constructor(private readonly prisma: PrismaService) {}
@@ -56,6 +57,7 @@ export class ProductsService {
         title: dto.title,
         slug,
         description: dto.description,
+        richDescription: dto.richDescription,
         condition: dto.condition,
         listingType: dto.listingType,
         status,
@@ -68,10 +70,20 @@ export class ProductsService {
         brandId: dto.brandId,
         sellerId,
         location: dto.location,
+        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
+        isBoosted: dto.isBoosted ?? false,
+        boostedUntil: dto.boostedUntil ? new Date(dto.boostedUntil) : undefined,
         publishedAt: status === ProductStatus.ACTIVE ? new Date() : undefined,
         images: dto.images?.length
           ? {
               create: this.normalizeImages(dto.images),
+            }
+          : undefined,
+        tags: dto.tags?.length
+          ? {
+              create: dto.tags.map((name) => ({
+                name: name.trim().toLowerCase(),
+              })),
             }
           : undefined,
       },
@@ -85,6 +97,8 @@ export class ProductsService {
   }
 
   async findAll(query: ListProductsQueryDto) {
+    await this.autoDelistExpiredProducts();
+
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -119,11 +133,13 @@ export class ProductsService {
         : {}),
     };
 
+    const orderBy = this.resolveSortOrder(query.sort);
+
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
         include: this.productInclude,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: limit,
       }),
@@ -204,9 +220,29 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    await this.prisma.product.update({
+      where: { id: product.id },
+      data: { viewCount: { increment: 1 } },
+    });
+
     return {
       message: 'Product retrieved',
-      data: product,
+      data: { ...product, viewCount: product.viewCount + 1 },
+    };
+  }
+
+  async bulkCreate(sellerId: string, products: CreateProductDto[]) {
+    const created: Awaited<ReturnType<typeof this.create>>['data'][] = [];
+
+    for (const dto of products) {
+      const result = await this.create(sellerId, dto);
+      created.push(result.data);
+    }
+
+    return {
+      message: 'Bulk products created',
+      data: created,
+      meta: { count: created.length },
     };
   }
 
@@ -228,6 +264,10 @@ export class ProductsService {
         await tx.productImage.deleteMany({ where: { productId } });
       }
 
+      if (dto.tags) {
+        await tx.productTag.deleteMany({ where: { productId } });
+      }
+
       return tx.product.update({
         where: { id: productId },
         data: {
@@ -236,6 +276,7 @@ export class ProductsService {
             ? await this.createUniqueSlug(dto.title, productId)
             : undefined,
           description: dto.description,
+          richDescription: dto.richDescription,
           condition: dto.condition,
           listingType: dto.listingType,
           status: dto.status,
@@ -247,6 +288,11 @@ export class ProductsService {
           categoryId: dto.categoryId,
           brandId: dto.brandId,
           location: dto.location,
+          expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
+          isBoosted: dto.isBoosted,
+          boostedUntil: dto.boostedUntil
+            ? new Date(dto.boostedUntil)
+            : undefined,
           publishedAt:
             existingProduct.status !== ProductStatus.ACTIVE &&
             nextStatus === ProductStatus.ACTIVE
@@ -254,6 +300,13 @@ export class ProductsService {
               : undefined,
           images: dto.images
             ? { create: this.normalizeImages(dto.images) }
+            : undefined,
+          tags: dto.tags
+            ? {
+                create: dto.tags.map((name) => ({
+                  name: name.trim().toLowerCase(),
+                })),
+              }
             : undefined,
         },
         include: this.productInclude,
@@ -406,5 +459,35 @@ export class ProductsService {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'product'
     );
+  }
+
+  private resolveSortOrder(sort?: string) {
+    switch (sort) {
+      case 'price_asc':
+        return { price: 'asc' as const };
+      case 'price_desc':
+        return { price: 'desc' as const };
+      case 'views':
+        return { viewCount: 'desc' as const };
+      case 'boosted':
+        return [
+          { isBoosted: 'desc' as const },
+          { boostedUntil: 'desc' as const },
+          { createdAt: 'desc' as const },
+        ];
+      default:
+        return { createdAt: 'desc' as const };
+    }
+  }
+
+  private async autoDelistExpiredProducts() {
+    const now = new Date();
+    await this.prisma.product.updateMany({
+      where: {
+        status: ProductStatus.ACTIVE,
+        expiresAt: { lte: now },
+      },
+      data: { status: ProductStatus.ARCHIVED },
+    });
   }
 }

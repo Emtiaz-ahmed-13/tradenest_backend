@@ -11,6 +11,8 @@ export default () => ({
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
     password: process.env.REDIS_PASSWORD || undefined,
     url: process.env.REDIS_URL ?? 'redis://localhost:6379',
+    enabled:
+      (process.env.REDIS_ENABLED ?? 'true').toLowerCase() === 'true',
   },
   betterAuth: {
     secret: process.env.BETTER_AUTH_SECRET,
@@ -57,6 +59,44 @@ export default () => ({
   resend: {
     apiKey: process.env.RESEND_API_KEY,
     fromEmail: process.env.RESEND_FROM_EMAIL,
+  },
+  bkash: {
+    appKey: process.env.BKASH_APP_KEY,
+    appSecret: process.env.BKASH_APP_SECRET,
+    username: process.env.BKASH_USERNAME,
+    password: process.env.BKASH_PASSWORD,
+    baseUrl:
+      process.env.BKASH_BASE_URL ??
+      'https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized/checkout',
+  },
+  sslcommerz: {
+    storeId: process.env.SSLCOMMERZ_STORE_ID,
+    storePassword: process.env.SSLCOMMERZ_STORE_PASSWORD,
+    baseUrl:
+      process.env.SSLCOMMERZ_BASE_URL ??
+      ((process.env.SSLCOMMERZ_IS_LIVE ?? 'false').toLowerCase() === 'true'
+        ? 'https://securepay.sslcommerz.com'
+        : 'https://sandbox.sslcommerz.com'),
+    isLive:
+      (process.env.SSLCOMMERZ_IS_LIVE ?? 'false').toLowerCase() === 'true',
+  },
+  nagad: {
+    merchantId: process.env.NAGAD_MERCHANT_ID,
+    merchantNumber: process.env.NAGAD_MERCHANT_NUMBER,
+    publicKey: process.env.NAGAD_PUBLIC_KEY,
+    privateKey: process.env.NAGAD_PRIVATE_KEY,
+    baseUrl: process.env.NAGAD_BASE_URL,
+  },
+  sms: {
+    provider: process.env.SMS_PROVIDER,
+    apiKey: process.env.SMS_API_KEY,
+    senderId: process.env.SMS_SENDER_ID,
+    baseUrl: process.env.SMS_BASE_URL,
+  },
+  otp: {
+    length: parseInt(process.env.OTP_LENGTH ?? '6', 10),
+    ttlSeconds: parseInt(process.env.OTP_TTL_SECONDS ?? '300', 10),
+    maxAttempts: parseInt(process.env.OTP_MAX_ATTEMPTS ?? '5', 10),
   },
   swagger: {
     enabled: (process.env.SWAGGER_ENABLED ?? 'true').toLowerCase() === 'true',

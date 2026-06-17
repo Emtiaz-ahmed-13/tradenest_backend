@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { InitGatewayPaymentDto } from './dto/init-gateway-payment.dto';
 import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
 import { PaymentsService } from './payments.service';
 
@@ -26,6 +27,16 @@ export class PaymentsController {
   @Get(':id')
   findOne(@Session() session: UserSession, @Param('id') id: string) {
     return this.paymentsService.findOne(session.user.id, id);
+  }
+
+  @Post(':id/init-gateway')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  initGateway(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body() dto: InitGatewayPaymentDto,
+  ) {
+    return this.paymentsService.initGatewayPayment(session.user.id, id, dto);
   }
 
   @Patch(':id/status')

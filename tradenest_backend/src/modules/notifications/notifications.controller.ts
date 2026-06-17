@@ -1,7 +1,17 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { ListNotificationsQueryDto } from './dto/list-notifications-query.dto';
+import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 import { NotificationsService } from './notifications.service';
 
@@ -40,5 +50,25 @@ export class NotificationsController {
     @Body() dto: UpdateNotificationPreferencesDto,
   ) {
     return this.notificationsService.updatePreferences(session.user.id, dto);
+  }
+
+  @Post('push-tokens')
+  registerPushToken(
+    @Session() session: UserSession,
+    @Body() dto: RegisterPushTokenDto,
+  ) {
+    return this.notificationsService.registerPushToken(
+      session.user.id,
+      dto.token,
+      dto.platform,
+    );
+  }
+
+  @Delete('push-tokens/:token')
+  removePushToken(
+    @Session() session: UserSession,
+    @Param('token') token: string,
+  ) {
+    return this.notificationsService.removePushToken(session.user.id, token);
   }
 }

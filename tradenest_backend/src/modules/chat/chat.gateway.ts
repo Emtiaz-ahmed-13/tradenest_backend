@@ -1,6 +1,7 @@
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -20,13 +21,17 @@ type SendPayload = JoinPayload & {
   attachmentUrl?: string;
 };
 
+type SocketData = {
+  userId?: string;
+};
+
 @WebSocketGateway({
   cors: {
     origin: true,
     credentials: true,
   },
 })
-export class ChatGateway {
+export class ChatGateway implements OnGatewayConnection {
   @WebSocketServer()
   private server!: Server;
 
@@ -35,37 +40,76 @@ export class ChatGateway {
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  async handleConnection(socket: Socket) {
+    const userId = this.extractUserId(socket);
+
+    if (!userId) {
+      socket.disconnect(true);
+      return;
+    }
+
+    const session = await this.prisma.session.findFirst({
+      where: {
+        userId,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!session) {
+      socket.disconnect(true);
+      return;
+    }
+
+    this.setSocketUserId(socket, userId);
+    await socket.join(this.getUserRoom(userId));
+  }
+
   @SubscribeMessage('chat:join')
   async joinConversation(
     @ConnectedSocket() socket: Socket,
     @MessageBody() payload: JoinPayload,
   ) {
-    if (!payload.userId || !payload.conversationId) {
-      return { ok: false, message: 'userId and conversationId are required' };
+    const userId = this.getSocketUserId(socket);
+
+    if (!userId || userId !== payload.userId) {
+      return { ok: false, message: 'Unauthorized socket session' };
     }
 
-    await this.ensureParticipant(payload.userId, payload.conversationId);
+    if (!payload.conversationId) {
+      return { ok: false, message: 'conversationId is required' };
+    }
+
+    await this.ensureParticipant(userId, payload.conversationId);
     await socket.join(this.getConversationRoom(payload.conversationId));
 
     return { ok: true, room: this.getConversationRoom(payload.conversationId) };
   }
 
   @SubscribeMessage('chat:send')
-  async sendMessage(@MessageBody() payload: SendPayload) {
-    if (!payload.userId || !payload.conversationId || !payload.body?.trim()) {
+  async sendMessage(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() payload: SendPayload,
+  ) {
+    const userId = this.getSocketUserId(socket);
+
+    if (!userId || userId !== payload.userId) {
+      return { ok: false, message: 'Unauthorized socket session' };
+    }
+
+    if (!payload.conversationId || !payload.body?.trim()) {
       return {
         ok: false,
-        message: 'userId, conversationId and body are required',
+        message: 'conversationId and body are required',
       };
     }
 
-    await this.ensureParticipant(payload.userId, payload.conversationId);
+    await this.ensureParticipant(userId, payload.conversationId);
 
     const message = await this.prisma.$transaction(async (tx) => {
       const created = await tx.message.create({
         data: {
           conversationId: payload.conversationId!,
-          senderId: payload.userId!,
+          senderId: userId,
           body: payload.body!.trim(),
           attachmentUrl: payload.attachmentUrl,
         },
@@ -85,7 +129,7 @@ export class ChatGateway {
     this.emitToConversation(payload.conversationId, 'chat:message', message);
     await this.notifyOtherParticipants(
       payload.conversationId,
-      payload.userId,
+      userId,
       message.id,
     );
 
@@ -100,6 +144,20 @@ export class ChatGateway {
     this.server
       .to(this.getConversationRoom(conversationId))
       .emit(event, payload);
+  }
+
+  private extractUserId(socket: Socket): string | undefined {
+    const auth = socket.handshake.auth as { userId?: string };
+    const query = socket.handshake.query as { userId?: string };
+    return auth.userId ?? query.userId;
+  }
+
+  private getSocketUserId(socket: Socket): string | undefined {
+    return (socket.data as SocketData).userId;
+  }
+
+  private setSocketUserId(socket: Socket, userId: string): void {
+    (socket.data as SocketData).userId = userId;
   }
 
   private async ensureParticipant(userId: string, conversationId: string) {
@@ -146,5 +204,9 @@ export class ChatGateway {
 
   private getConversationRoom(conversationId: string): string {
     return `conversation:${conversationId}`;
+  }
+
+  private getUserRoom(userId: string): string {
+    return `user:${userId}`;
   }
 }

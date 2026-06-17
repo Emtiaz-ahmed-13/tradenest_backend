@@ -139,6 +139,30 @@ export class NotificationsService {
     };
   }
 
+  async registerPushToken(userId: string, token: string, platform = 'web') {
+    const pushToken = await this.prisma.pushToken.upsert({
+      where: { userId_token: { userId, token } },
+      create: { userId, token, platform },
+      update: { platform },
+    });
+
+    return {
+      message: 'Push token registered',
+      data: pushToken,
+    };
+  }
+
+  async removePushToken(userId: string, token: string) {
+    await this.prisma.pushToken.deleteMany({
+      where: { userId, token },
+    });
+
+    return {
+      message: 'Push token removed',
+      data: { token },
+    };
+  }
+
   private async getOrCreatePreferences(userId: string) {
     const existing = await this.prisma.notificationPreference.findUnique({
       where: { userId },

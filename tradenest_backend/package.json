@@ -96,6 +96,12 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@thallesp/nestjs-better-auth)/)"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

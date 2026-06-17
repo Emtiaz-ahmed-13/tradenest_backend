@@ -63,4 +63,8 @@ export class ListProductsQueryDto {
   @Min(1)
   @Max(100)
   limit?: number;
+
+  @IsOptional()
+  @IsString()
+  sort?: 'price_asc' | 'price_desc' | 'views' | 'boosted' | 'newest';
 }

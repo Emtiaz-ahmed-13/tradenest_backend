@@ -16,6 +16,7 @@ import {
   Session,
   type UserSession,
 } from '@thallesp/nestjs-better-auth';
+import { BulkUploadProductsDto } from './dto/bulk-upload-products.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { UpdateProductStatusDto } from './dto/update-product-status.dto';
@@ -31,6 +32,14 @@ export class ProductsController {
   @Post()
   create(@Session() session: UserSession, @Body() dto: CreateProductDto) {
     return this.productsService.create(session.user.id, dto);
+  }
+
+  @Post('bulk')
+  bulkCreate(
+    @Session() session: UserSession,
+    @Body() dto: BulkUploadProductsDto,
+  ) {
+    return this.productsService.bulkCreate(session.user.id, dto.products);
   }
 
   @Get()

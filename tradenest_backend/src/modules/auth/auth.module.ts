@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthConfigService } from './auth.service';
+import { OtpController } from './otp.controller';
+import { OtpService } from './otp.service';
 
 @Module({
   imports: [
@@ -21,7 +23,8 @@ import { AuthConfigService } from './auth.service';
       },
     }),
   ],
-  providers: [AuthConfigService],
-  exports: [AuthConfigService, BetterAuthModule],
+  controllers: [OtpController],
+  providers: [AuthConfigService, OtpService],
+  exports: [AuthConfigService, BetterAuthModule, OtpService],
 })
 export class AuthModule {}

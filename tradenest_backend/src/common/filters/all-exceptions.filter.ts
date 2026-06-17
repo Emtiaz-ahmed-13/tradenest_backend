@@ -54,7 +54,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error = exception.name;
     }
 
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
       this.logger.error(
         `${request.method} ${request.url}`,
         exception instanceof Error ? exception.stack : String(exception),
@@ -71,9 +71,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
-      ...(status === HttpStatus.BAD_REQUEST && details ? { details } : {}),
+      ...(status === Number(HttpStatus.BAD_REQUEST) && details
+        ? { details }
+        : {}),
       ...(!isProduction &&
-      status >= HttpStatus.INTERNAL_SERVER_ERROR &&
+      status >= Number(HttpStatus.INTERNAL_SERVER_ERROR) &&
       exception instanceof Error
         ? { details: exception.stack }
         : {}),
